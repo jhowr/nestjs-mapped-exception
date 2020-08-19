@@ -10,6 +10,9 @@ import { throwError } from 'rxjs';
 import { QueryFailedError } from 'typeorm';
 import { isArray } from 'util';
 import { MappedExceptionError } from '../mapped-exception-error.class';
+import console from 'console';
+import { GrpcToHttpExceptionMapping } from '../maps/grpc-to-http-exception';
+import { RpcException } from '@nestjs/microservices';
 
 enum ErrorLayerEnum {
   DATABASE,
@@ -47,7 +50,7 @@ export class MappedExceptionFilter implements ExceptionFilter {
     }
 
     if (contextType === 'rpc') {
-      return this.handleRpcContext(code, message);
+      return this.handleRpcContext(status, code, message);
     }
 
     if (contextType === 'graphql') {
@@ -105,6 +108,22 @@ export class MappedExceptionFilter implements ExceptionFilter {
           message: exception.message,
           status: exception.getStatus(),
         };
+      } else if (exception instanceof RpcException) {
+        const error: any = exception.getError();
+        return {
+          code: this.defaultApplicationErrorPrefix,
+          message: error.message,
+          status: error.code,
+        };
+      } else if (exception.code && exception.details) {
+        const error = new GrpcToHttpExceptionMapping[exception.code](
+          exception.details,
+        );
+        return {
+          code: this.defaultApplicationErrorPrefix,
+          message: error.message,
+          status: error.status,
+        };
       }
 
       return {
@@ -131,8 +150,17 @@ export class MappedExceptionFilter implements ExceptionFilter {
     });
   }
 
-  private handleRpcContext(code: string, message: string = ''): any {
-    return throwError(new Error(`${message} [${code}]`));
+  private handleRpcContext(
+    grpcCode: number,
+    code: string,
+    message: string = '',
+  ): any {
+    const rpcException = new RpcException({
+      message: ` [${code}] ${message}`,
+      code: grpcCode,
+    });
+
+    return throwError(rpcException.getError());
   }
 
   private graphqlFormatError(status: number, message: string, code: string) {

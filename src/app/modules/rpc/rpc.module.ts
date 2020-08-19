@@ -8,6 +8,7 @@ import ormConfig from '../../ormconfig';
 import { User } from '../user/user.entity';
 import { RpcException } from './rpc.exception';
 import { RpcService } from './rpc.service';
+import { RpcController } from './rpc.controller';
 
 /*
 @Module({
@@ -56,6 +57,6 @@ export class RpcModule {}
       },
     ]),
   ],
-  controllers: [RpcService],
+  controllers: [RpcController, RpcService],
 })
 export class RpcModule {}

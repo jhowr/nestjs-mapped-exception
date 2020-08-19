@@ -5,12 +5,13 @@ import {
   Injectable,
   UseFilters,
 } from '@nestjs/common';
-import { GrpcMethod } from '@nestjs/microservices';
+import { GrpcMethod, RpcException } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MappedException, MappedExceptionFilter } from '../../..';
 import { User } from '../user/user.entity';
-import { RpcException } from './rpc.exception';
+import { RpcException as LocalRpcException } from './rpc.exception';
+import { status as GrpcStatus } from 'grpc';
 
 @Controller()
 @UseFilters(new MappedExceptionFilter())
@@ -19,7 +20,7 @@ export class RpcService {
   constructor(
     @InjectRepository(User)
     private readonly repository: Repository<User>,
-    private readonly exception: MappedException<RpcException>,
+    private readonly exception: MappedException<LocalRpcException>,
   ) {}
 
   @GrpcMethod('RpcService', 'databaseError')
@@ -35,7 +36,10 @@ export class RpcService {
 
   @GrpcMethod('RpcService', 'applicationError')
   async applicationError() {
-    throw new Error('This is an application error');
+    throw new RpcException({
+      code: GrpcStatus.ALREADY_EXISTS,
+      message: 'This is an application error',
+    });
   }
 
   @GrpcMethod('RpcService', 'exceptionError')
